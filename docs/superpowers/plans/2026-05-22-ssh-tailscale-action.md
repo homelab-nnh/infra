@@ -66,7 +66,6 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASS }}
-          script_stop: true
           script: ${{ inputs.command }}
 ```
 
