@@ -1,0 +1,17 @@
+name: Test SSH via Tailscale
+
+on:
+  workflow_dispatch:
+
+jobs:
+  echo:
+    name: Echo on remote server
+    uses: ./.github/workflows/ssh-tailscale.yml
+    with:
+      command: echo "hello from github actions via tailscale"
+    secrets:
+      TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PASS: ${{ secrets.SSH_PASS }}

@@ -1,0 +1,50 @@
+name: SSH via Tailscale
+
+on:
+  workflow_call:
+    inputs:
+      command:
+        description: Command to run on the remote server.
+        required: false
+        type: string
+        default: hostname && whoami && pwd
+    secrets:
+      TAILSCALE_AUTHKEY:
+        required: true
+      SSH_HOST:
+        required: true
+      SSH_PORT:
+        required: true
+      SSH_USER:
+        required: true
+      SSH_PASS:
+        required: true
+  workflow_dispatch:
+    inputs:
+      command:
+        description: Command to run on the remote server.
+        required: false
+        type: string
+        default: hostname && whoami && pwd
+
+jobs:
+  ssh:
+    name: SSH via Tailscale
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+      - name: Run remote command
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          password: ${{ secrets.SSH_PASS }}
+          script_stop: true
+          script: ${{ inputs.command }}
