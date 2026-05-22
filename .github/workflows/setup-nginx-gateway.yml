@@ -1,0 +1,88 @@
+name: Setup Nginx Gateway
+
+on:
+  workflow_dispatch:
+
+jobs:
+  prepare:
+    name: Prepare nginx config
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      command: ${{ steps.command.outputs.command }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build remote command
+        id: command
+        run: |
+          set -euo pipefail
+
+          tar -C nginx -czf nginx-config.tar.gz .
+          payload="$(base64 -w 0 nginx-config.tar.gz)"
+
+          {
+            echo "command<<REMOTE_SCRIPT"
+            cat <<'REMOTE_SCRIPT'
+            set -euo pipefail
+
+            CONFIG_ROOT=/tmp/nginx-gateway/nginx
+            rm -rf /tmp/nginx-gateway
+            mkdir -p "$CONFIG_ROOT"
+
+
+            cat >/tmp/nginx-gateway/nginx-config.tar.gz.b64 <<'NGINX_PAYLOAD'
+          REMOTE_SCRIPT
+            echo "$payload"
+            cat <<'REMOTE_SCRIPT'
+          NGINX_PAYLOAD
+            base64 -d /tmp/nginx-gateway/nginx-config.tar.gz.b64 > /tmp/nginx-gateway/nginx-config.tar.gz
+            tar -xzf /tmp/nginx-gateway/nginx-config.tar.gz -C "$CONFIG_ROOT"
+
+            if [ ! -d "$CONFIG_ROOT" ]; then
+              echo "Missing copied nginx config directory: $CONFIG_ROOT"
+              exit 1
+            fi
+
+            if ! command -v nginx >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y nginx
+            fi
+
+            sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled /etc/nginx/conf.d
+
+            if [ -d "$CONFIG_ROOT/conf.d" ]; then
+              sudo cp -R "$CONFIG_ROOT/conf.d/." /etc/nginx/conf.d/
+            fi
+
+            if [ -d "$CONFIG_ROOT/sites-available" ]; then
+              sudo cp -R "$CONFIG_ROOT/sites-available/." /etc/nginx/sites-available/
+
+              for site_path in "$CONFIG_ROOT"/sites-available/*; do
+                [ -f "$site_path" ] || continue
+                site_name="$(basename "$site_path")"
+                sudo ln -sfn "/etc/nginx/sites-available/$site_name" "/etc/nginx/sites-enabled/$site_name"
+              done
+            fi
+
+            sudo nginx -t
+            sudo systemctl enable nginx
+            sudo systemctl reload nginx
+          REMOTE_SCRIPT
+            echo "REMOTE_SCRIPT"
+          } >> "$GITHUB_OUTPUT"
+
+  setup:
+    name: Setup nginx gateway
+    needs: prepare
+    uses: ./.github/workflows/ssh-tailscale.yml
+    with:
+      command: ${{ needs.prepare.outputs.command }}
+    secrets:
+      TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PASS: ${{ secrets.SSH_PASS }}
