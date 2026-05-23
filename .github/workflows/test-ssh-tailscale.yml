@@ -6,17 +6,24 @@ on:
 jobs:
   echo:
     name: Echo on remote server
-    uses: ./.github/workflows/ssh-tailscale.yml
-    with:
-      command: |
-        echo "hello from github actions via tailscale"
-        echo "hostname: $(hostname)"
-        echo "user: $(whoami)"
-        echo "current directory: $(pwd)"
-        echo "hello from github actions via tailscale" >> /tmp/test-nnh.log
-    secrets:
-      TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_PORT: ${{ secrets.SSH_PORT }}
-      SSH_USER: ${{ secrets.SSH_USER }}
-      SSH_PASS: ${{ secrets.SSH_PASS }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Echo via SSH
+        uses: ./.github/actions/ssh-tailscale
+        with:
+          command: |
+            echo "hello from github actions via tailscale"
+            echo "hostname: $(hostname)"
+            echo "user: $(whoami)"
+            echo "current directory: $(pwd)"
+            echo "hello from github actions via tailscale" >> /tmp/test-nnh.log
+          tailscale_authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          ssh_host: ${{ secrets.SSH_HOST }}
+          ssh_port: ${{ secrets.SSH_PORT }}
+          ssh_user: ${{ secrets.SSH_USER }}
+          ssh_pass: ${{ secrets.SSH_PASS }}

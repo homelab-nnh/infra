@@ -34,23 +34,15 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: SSH via Tailscale
+        uses: ./.github/actions/ssh-tailscale
         with:
-          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
-
-      - name: Check SSH reachability
-        run: |
-          set -euo pipefail
-
-          tailscale status
-          timeout 10 bash -c 'cat < /dev/null > /dev/tcp/${{ secrets.SSH_HOST }}/${{ secrets.SSH_PORT }}'
-
-      - name: Run remote command
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          port: ${{ secrets.SSH_PORT }}
-          username: ${{ secrets.SSH_USER }}
-          password: ${{ secrets.SSH_PASS }}
-          script: ${{ inputs.command }}
+          command: ${{ inputs.command }}
+          tailscale_authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          ssh_host: ${{ secrets.SSH_HOST }}
+          ssh_port: ${{ secrets.SSH_PORT }}
+          ssh_user: ${{ secrets.SSH_USER }}
+          ssh_pass: ${{ secrets.SSH_PASS }}

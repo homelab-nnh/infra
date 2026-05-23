@@ -1,0 +1,52 @@
+name: SSH via Tailscale
+description: Connect an Ubuntu runner to Tailscale and run a remote SSH command.
+
+inputs:
+  command:
+    description: Command to run on the remote server.
+    required: true
+  tailscale_authkey:
+    description: Tailscale auth key.
+    required: true
+  ssh_host:
+    description: SSH host.
+    required: true
+  ssh_port:
+    description: SSH port.
+    required: true
+  ssh_user:
+    description: SSH username.
+    required: true
+  ssh_pass:
+    description: SSH password.
+    required: true
+  connect_tailscale:
+    description: Connect the runner to Tailscale before running SSH.
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Connect to Tailscale
+      if: ${{ inputs.connect_tailscale == 'true' }}
+      uses: tailscale/github-action@v4
+      with:
+        authkey: ${{ inputs.tailscale_authkey }}
+
+    - name: Check SSH reachability
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        tailscale status
+        timeout 10 bash -c 'cat < /dev/null > /dev/tcp/${{ inputs.ssh_host }}/${{ inputs.ssh_port }}'
+
+    - name: Run remote command
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{ inputs.ssh_host }}
+        port: ${{ inputs.ssh_port }}
+        username: ${{ inputs.ssh_user }}
+        password: ${{ inputs.ssh_pass }}
+        script: ${{ inputs.command }}
